@@ -1,8 +1,14 @@
 import re
 
+from django.contrib.auth import get_user_model
+from django.contrib.auth.password_validation import validate_password
+from django.core.exceptions import ValidationError as DjangoValidationError
 from rest_framework import serializers
 
+from . import demo
 from .models import CareerProfile, CareerProject, ProjectSubmission
+
+User = get_user_model()
 
 
 class SkillListField(serializers.Field):
@@ -36,12 +42,43 @@ class CareerProfileSerializer(serializers.ModelSerializer):
     existing_skills = SkillListField(required=False)
     weekly_learning_hours = serializers.IntegerField(min_value=1, max_value=80)
     job_description = serializers.CharField(required=False, allow_blank=True, max_length=8000)
+    demo_key = serializers.CharField(required=False, allow_blank=True, max_length=40)
 
     class Meta:
         model = CareerProfile
         fields = ["id", "name", "target_role", "experience_level", "existing_skills",
-                  "weekly_learning_hours", "job_description", "is_demo", "created_at"]
+                  "weekly_learning_hours", "job_description", "is_demo", "demo_key", "created_at"]
         read_only_fields = ["id", "created_at"]
+
+    def validate_demo_key(self, value):
+        if value and value not in demo.SCENARIO_IDS:
+            raise serializers.ValidationError("Unknown demo scenario.")
+        return value
+
+
+class RegisterSerializer(serializers.Serializer):
+    name = serializers.CharField(max_length=100)
+    email = serializers.EmailField(max_length=150)
+    password = serializers.CharField(write_only=True, max_length=128, trim_whitespace=False)
+
+    def validate_email(self, value):
+        value = value.strip().lower()
+        if User.objects.filter(username__iexact=value).exists():
+            raise serializers.ValidationError("An account with this email already exists. Try signing in.")
+        return value
+
+    def validate(self, attrs):
+        try:
+            validate_password(attrs["password"], user=User(username=attrs["email"], email=attrs["email"],
+                                                           first_name=attrs["name"]))
+        except DjangoValidationError as exc:
+            raise serializers.ValidationError({"password": list(exc.messages)})
+        return attrs
+
+
+class LoginSerializer(serializers.Serializer):
+    email = serializers.EmailField(max_length=150)
+    password = serializers.CharField(write_only=True, max_length=128, trim_whitespace=False)
 
 
 class AnalyzeRequestSerializer(serializers.Serializer):
@@ -69,7 +106,7 @@ def project_payload(p: CareerProject):
     return {
         "id": p.id, "profile_id": p.career_profile_id, "analysis_id": p.analysis_id,
         "title": p.title, "project": p.project_data, "rubric": p.rubric_data,
-        "created_at": p.created_at,
+        "demo_key": p.career_profile.demo_key, "created_at": p.created_at,
     }
 
 

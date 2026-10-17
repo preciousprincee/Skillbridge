@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.db import models
 
 
@@ -9,6 +10,10 @@ class CareerProfile(models.Model):
     weekly_learning_hours = models.PositiveSmallIntegerField()
     job_description = models.TextField(blank=True)
     is_demo = models.BooleanField(default=False)
+    demo_key = models.CharField(max_length=40, blank=True)
+    # Optional: guests (owner=None) can still use the app; signed-in users own their plans.
+    owner = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.CASCADE,
+                              related_name="career_profiles")
     created_at = models.DateTimeField(auto_now_add=True)
 
 

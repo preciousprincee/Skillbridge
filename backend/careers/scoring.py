@@ -141,7 +141,7 @@ def compute_gap(skills, student_skills, ai_matches=None):
 
     groups, display = {}, {}
     for it in items:
-        raw = (it.get("category") or ("Technical" if it.get("type") == "technical" else "Professional")).strip()
+        raw = (it.get("category") or ("Job-specific skills" if it.get("type") == "technical" else "Professional skills")).strip()
         key = raw.lower()
         display.setdefault(key, raw.title() if raw.islower() else raw)
         groups.setdefault(key, []).append(it)

@@ -4,7 +4,12 @@ from . import views
 
 urlpatterns = [
     path("health/", views.health),
-    path("demo/", views.demo_scenario),
+    path("demo/", views.demo_scenarios),
+    path("auth/register/", views.RegisterView.as_view()),
+    path("auth/login/", views.LoginView.as_view()),
+    path("auth/logout/", views.logout),
+    path("auth/me/", views.me),
+    path("my/plans/", views.my_plans),
     path("profiles/", views.create_profile),
     path("analyze/", views.analyze),
     path("analyses/<int:pk>/", views.analysis_detail),

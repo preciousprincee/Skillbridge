@@ -4,19 +4,20 @@ import PlankMeter from '../components/PlankMeter.jsx'
 
 // Static sample so the landing page works without the backend. Clearly labelled as demonstration data.
 const PREVIEW_SKILLS = [
-  { name: 'Python', status: 'to_improve' },
-  { name: 'SQL', status: 'to_improve' },
-  { name: 'Data cleaning', status: 'not_demonstrated' },
-  { name: 'ETL fundamentals', status: 'not_demonstrated' },
-  { name: 'Version control', status: 'reported' },
-  { name: 'Cloud awareness', status: 'not_demonstrated' },
-  { name: 'Communication', status: 'not_demonstrated' },
+  { name: 'Content writing', status: 'reported' },
+  { name: 'Social media management', status: 'to_improve' },
+  { name: 'Design with Canva', status: 'to_improve' },
+  { name: 'SEO basics', status: 'not_demonstrated' },
+  { name: 'Performance reporting', status: 'not_demonstrated' },
+  { name: 'Email newsletters', status: 'not_demonstrated' },
+  { name: 'Communication', status: 'reported' },
 ]
 const PREVIEW_ACTIONS = [
-  { name: 'Data cleaning', priority: 'high' },
-  { name: 'ETL fundamentals', priority: 'high' },
-  { name: 'Python', priority: 'medium' },
+  { name: 'Performance reporting', priority: 'high' },
+  { name: 'SEO basics', priority: 'high' },
+  { name: 'Email newsletters', priority: 'medium' },
 ]
+const FIELDS = ['Marketing', 'Accounting', 'Healthcare', 'Teaching', 'Design', 'Sales', 'Operations', 'Engineering', 'Software', 'Data']
 
 const STEPS = [
   {
@@ -27,12 +28,12 @@ const STEPS = [
   {
     icon: Hammer,
     title: 'Build',
-    body: 'Get one practical project sized to your level and your weekly hours, using free tools. It targets your biggest gaps, and you can ask for a different one.',
+    body: 'Get one practical project for your field, sized to your level and your weekly hours, using free or low-cost tools. It targets your biggest gaps, and you can ask for a different one.',
   },
   {
     icon: ClipboardCheck,
     title: 'Prove',
-    body: 'Submit your write-up and code snippets. They are scored against a 100-point rubric, and every score points to what you showed or what is still missing.',
+    body: 'Submit your write-up and work samples, such as figures, excerpts or code. They are scored against a 100-point rubric, and every score points to what you showed or what is still missing.',
   },
 ]
 
@@ -44,22 +45,23 @@ export default function Landing() {
           <h1 className="text-4xl font-bold leading-[1.05] sm:text-6xl">Stop Guessing. Start Proving.</h1>
           <p className="mt-5 max-w-xl text-lg leading-relaxed text-muted">
             SkillBridge AI turns a job you want into a plan you can act on: where your skills fall short, a real
-            project to close the gap, and an assessment of the evidence you produce. Built for students and graduates
-            applying for internships and entry-level roles.
+            project to close the gap, and an assessment of the evidence you produce. It works for any career, from
+            marketing and accounting to teaching, healthcare and software. Built for students and graduates applying
+            for internships and entry-level roles.
           </p>
           <div className="mt-8 flex flex-wrap gap-3">
             <LinkButton to="/setup" className="px-6 py-3 text-base">Build My Career Plan</LinkButton>
-            <LinkButton to="/setup?demo=1" variant="secondary" className="px-6 py-3 text-base">Try the demo scenario</LinkButton>
+            <LinkButton to="/setup?demo=1" variant="secondary" className="px-6 py-3 text-base">Try a demo scenario</LinkButton>
           </div>
         </div>
 
         <figure aria-label="Preview of the skill gap dashboard" className="rounded-2xl border border-line bg-white p-5 shadow-sm sm:p-6">
           <figcaption className="mb-4 flex items-center justify-between gap-3 text-sm text-muted">
-            <span className="font-semibold text-ink">Junior Data Engineer</span>
+            <span className="font-semibold text-ink">Digital Marketing Assistant</span>
             <span>Sample preview, demonstration data</span>
           </figcaption>
           <p className="text-sm text-muted">Estimated profile-to-job alignment</p>
-          <p className="font-display text-5xl font-bold">33%</p>
+          <p className="font-display text-5xl font-bold">43%</p>
           <div className="mt-4">
             <PlankMeter skills={PREVIEW_SKILLS} />
           </div>
@@ -72,6 +74,20 @@ export default function Landing() {
             ))}
           </ul>
         </figure>
+      </section>
+
+      <section aria-labelledby="fields">
+        <h2 id="fields" className="text-3xl font-bold">Made for every career, not just tech</h2>
+        <p className="mt-3 max-w-2xl leading-relaxed text-muted">
+          Tell us the job you want in your own words. The project and rubric are written for that field, whether that is a
+          content calendar, a bank reconciliation, a lesson plan or a data pipeline.
+        </p>
+        <ul className="mt-5 flex flex-wrap gap-2">
+          {FIELDS.map((f) => (
+            <li key={f} className="rounded-full border border-line bg-white px-4 py-1.5 text-sm font-semibold">{f}</li>
+          ))}
+          <li className="rounded-full px-2 py-1.5 text-sm text-muted">and more</li>
+        </ul>
       </section>
 
       <section aria-labelledby="how">

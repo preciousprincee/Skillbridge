@@ -3,6 +3,7 @@ import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { Clock, FlaskConical, RefreshCw, Send } from 'lucide-react'
 import { api } from '../api.js'
 import { useLoad } from '../useLoad.js'
+import JourneyNav from '../components/JourneyNav.jsx'
 import {
   Button, Card, ErrorBanner, Field, PageLoading, ProgressPanel, inputClasses,
 } from '../components/ui.jsx'
@@ -78,7 +79,8 @@ export default function Project() {
     setSampleLoading(true)
     try {
       const d = await api.demo()
-      setText(d.sample_submission)
+      const sc = d.scenarios.find((x) => x.id === data.demo_key)
+      if (sc) setText(sc.sample_submission)
       setFieldErrors({})
     } catch (e) {
       setSub({ busy: false, error: e })
@@ -104,6 +106,8 @@ export default function Project() {
   }
 
   return (
+    <div>
+    <JourneyNav current="project" analysisId={data.analysis_id} projectId={data.id} />
     <div className="grid gap-10 lg:grid-cols-[1fr_15rem]">
       <div className="min-w-0 space-y-12">
         <header id="brief" className="scroll-mt-6">
@@ -201,7 +205,7 @@ export default function Project() {
               <Field
                 id="submission_text"
                 label="Your write-up and evidence"
-                hint="Explain what you built and how. Include a project summary and paste key code or SQL snippets. Only what you write here is assessed."
+                hint="Explain what you made and how. Include a project summary and paste the key evidence: figures, excerpts, drafts or code. Only what you write here is assessed."
                 error={fieldErrors.text}
               >
                 <textarea
@@ -213,16 +217,18 @@ export default function Project() {
                   onChange={(e) => setText(e.target.value)}
                 />
                 <div className="mt-1.5 flex flex-wrap items-center justify-between gap-2 text-sm text-muted">
-                  <Button type="button" variant="ghost" loading={sampleLoading} onClick={loadSample} className="!px-2 !py-1">
-                    <FlaskConical className="h-4 w-4" aria-hidden="true" /> Fill in the demo sample submission
-                  </Button>
+                  {data.demo_key ? (
+                    <Button type="button" variant="ghost" loading={sampleLoading} onClick={loadSample} className="!px-2 !py-1">
+                      <FlaskConical className="h-4 w-4" aria-hidden="true" /> Fill in the demo sample submission
+                    </Button>
+                  ) : <span />}
                   <span>{text.length}/12000</span>
                 </div>
               </Field>
               <Field
                 id="repository_url"
-                label="Repository link (optional)"
-                hint="We save the link but do not open it or run your code. Paste the relevant code above so it can be assessed."
+                label="Link to your work (optional)"
+                hint="We save the link but do not open it or run anything. Paste the relevant work above so it can be assessed."
                 error={fieldErrors.repo}
               >
                 <input
@@ -231,7 +237,7 @@ export default function Project() {
                   className={inputClasses}
                   value={repo}
                   maxLength={300}
-                  placeholder="https://github.com/you/project"
+                  placeholder="https://link-to-your-work.example (optional)"
                   onChange={(e) => setRepo(e.target.value)}
                 />
               </Field>
@@ -256,6 +262,7 @@ export default function Project() {
           </ul>
         </nav>
       </aside>
+    </div>
     </div>
   )
 }

@@ -278,3 +278,60 @@ class GroqProviderTests(unittest.TestCase):
             with self.assertRaises(ai.AIServiceError) as cm:
                 ai._raw_generate("x")
         self.assertEqual(cm.exception.code, "missing_api_key")
+
+
+class DemoScenarioTests(unittest.TestCase):
+    def test_scenarios_are_valid_and_cover_non_tech_fields(self):
+        from careers import demo
+        ids = [s["id"] for s in demo.DEMO_SCENARIOS]
+        self.assertEqual(len(ids), len(set(ids)))
+        self.assertIn("digital-marketing", ids)
+        self.assertIn("junior-accountant", ids)
+        for s in demo.DEMO_SCENARIOS:
+            p = s["profile"]
+            self.assertTrue(p["target_role"] and p["existing_skills"])
+            self.assertTrue(1 <= p["weekly_learning_hours"] <= 80)
+            self.assertLessEqual(len(s["job_description"]), 8000)
+            self.assertGreaterEqual(len(s["sample_submission"]), 40)
+            self.assertLessEqual(len(s["sample_submission"]), 12000)
+            self.assertIn("not a real vacancy", s["job_description"].lower())
+
+    def test_non_tech_demo_gets_sensible_matches(self):
+        from careers import demo
+        sc = next(s for s in demo.DEMO_SCENARIOS if s["id"] == "digital-marketing")
+        reqs = [{"name": "Canva graphic design", "type": "technical", "category": "Tools", "importance": "important"},
+                {"name": "Social media posting", "type": "technical", "category": "Core", "importance": "critical"},
+                {"name": "SEO", "type": "technical", "category": "Core", "importance": "nice_to_have"}]
+        g = scoring.compute_gap(reqs, sc["profile"]["existing_skills"])
+        status = {s["name"]: s["status"] for s in g["skills"]}
+        self.assertEqual(status["Social media posting"], "reported")
+        self.assertEqual(status["SEO"], "not_demonstrated")
+
+    def test_fallback_category_labels_are_not_tech_specific(self):
+        sk = [{"name": "Teamwork", "type": "professional", "importance": "important"},
+              {"name": "Budgeting", "type": "technical", "importance": "important"}]
+        names = {c["category"] for c in scoring.compute_gap(sk, [])["categories"]}
+        self.assertEqual(names, {"Professional skills", "Job-specific skills"})
+
+
+class PromptNeutralityTests(unittest.TestCase):
+    def test_prompts_do_not_assume_a_tech_career(self):
+        with fake(json.dumps({"technical_skills": [{"name": "Budgeting", "importance": "critical"}]})) as m:
+            ai.extract_job_requirements("Junior Accountant", "")
+        prompt = m.call_args_list[0].args[0]
+        self.assertNotIn("Programming", prompt)
+        self.assertNotIn("Data Engineering", prompt)
+        self.assertIn("whatever the field is", prompt)
+        self.assertIn("Never assume a technology career", ai.SYSTEM)
+
+    def test_project_prompt_allows_non_code_work_samples(self):
+        project = {"title": "T", "problem_statement": "p", "why_it_matters": "w", "skills_tested": ["s"],
+                   "difficulty": "beginner", "estimated_hours": 6, "required_tools": ["Excel"],
+                   "tasks": [{"title": "a", "description": "a"}] * 3, "deliverables": ["d"],
+                   "acceptance_criteria": ["a", "b"], "common_mistakes": ["m"], "submission_checklist": ["a", "b"]}
+        with fake(json.dumps(project)) as m:
+            ai.generate_project({"target_role": "Junior Accountant", "experience_level": "Recent graduate",
+                                 "existing_skills": ["Excel"], "weekly_learning_hours": 6}, [{"name": "Reconciliation"}])
+        prompt = m.call_args_list[0].args[0]
+        self.assertIn("Do not\nassume programming", prompt)
+        self.assertNotIn("laptop", prompt)

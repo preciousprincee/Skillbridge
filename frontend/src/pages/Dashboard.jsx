@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { Sparkles } from 'lucide-react'
 import { api } from '../api.js'
 import { useLoad } from '../useLoad.js'
+import JourneyNav from '../components/JourneyNav.jsx'
 import PlankMeter from '../components/PlankMeter.jsx'
 import {
   Badge, Button, Card, ErrorBanner, Meter, PageLoading, PRIORITY, ProgressPanel, SKILL_STATUS,
@@ -48,6 +49,7 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-10">
+      <JourneyNav current="plan" analysisId={data.id} />
       <header>
         <p className="text-sm text-muted">Skill gap analysis for {profile.name}</p>
         <h1 className="mt-1 text-3xl font-bold sm:text-4xl">{profile.target_role}</h1>

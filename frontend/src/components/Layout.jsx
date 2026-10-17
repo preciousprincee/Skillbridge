@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { LogOut, Menu, X } from 'lucide-react'
-import { useAuth } from '../auth/AuthContext.jsx'
+import { useAuth } from '../auth.jsx'
 import { buttonClasses } from './ui.jsx'
 
 export function Wordmark({ className = '' }) {
@@ -17,36 +17,30 @@ export function Wordmark({ className = '' }) {
   )
 }
 
-// Plain-language labels so the menu makes sense to people in any field.
-const linkCls = ({ isActive }) =>
-  `rounded-md px-3 py-2 text-sm font-semibold ${isActive ? 'text-ink' : 'text-muted hover:text-ink'}`
-const plainLinkCls = 'rounded-md px-3 py-2 text-sm font-semibold text-muted hover:text-ink'
+const desktopLink = ({ isActive }) =>
+  `rounded-md px-3 py-2 text-sm font-semibold transition-colors ${isActive ? 'bg-paper text-ink' : 'text-muted hover:text-ink'}`
+const mobileLink = ({ isActive }) =>
+  `block rounded-lg px-3 py-3 text-base font-semibold ${isActive ? 'bg-paper text-ink' : 'text-ink hover:bg-paper'}`
 
 export default function Layout() {
   const { user, ready, logout } = useAuth()
   const [open, setOpen] = useState(false)
   const location = useLocation()
   const navigate = useNavigate()
-  const toggleRef = useRef(null)
+  const menuButton = useRef(null)
 
-  // Close the menu on navigation, on Escape, and when the screen grows to desktop size.
-  useEffect(() => setOpen(false), [location.pathname, location.search])
+  // Close the mobile menu after navigating, and on Escape.
+  useEffect(() => setOpen(false), [location.pathname])
   useEffect(() => {
-    if (!open) return
+    if (!open) return undefined
     const onKey = (e) => {
       if (e.key === 'Escape') {
         setOpen(false)
-        toggleRef.current?.focus()
+        menuButton.current?.focus()
       }
     }
-    const mq = window.matchMedia('(min-width: 768px)')
-    const onResize = () => mq.matches && setOpen(false)
     document.addEventListener('keydown', onKey)
-    mq.addEventListener('change', onResize)
-    return () => {
-      document.removeEventListener('keydown', onKey)
-      mq.removeEventListener('change', onResize)
-    }
+    return () => document.removeEventListener('keydown', onKey)
   }, [open])
 
   const signOut = async () => {
@@ -55,47 +49,39 @@ export default function Layout() {
     navigate('/')
   }
 
-  const items = [
-    <NavLink key="home" to="/" end className={linkCls}>Home</NavLink>,
-    <NavLink key="plan" to="/setup" end className={linkCls}>Build my plan</NavLink>,
-    <Link key="demo" to="/setup?demo=1" className={plainLinkCls}>See an example</Link>,
-  ]
-
-  const account = !ready ? null : user ? (
-    <>
-      <span className="px-3 py-2 text-sm text-muted">Hi, {user.name?.split(' ')[0] || 'there'}</span>
-      <button type="button" onClick={signOut} className={`inline-flex items-center gap-2 ${plainLinkCls}`}>
-        <LogOut className="h-4 w-4" aria-hidden="true" /> Sign out
-      </button>
-    </>
-  ) : (
-    <>
-      <Link to="/login" className={plainLinkCls}>Sign in</Link>
-      <Link to="/register" className={buttonClasses('primary', 'py-2')}>Create account</Link>
-    </>
-  )
-
   return (
     <div className="flex min-h-screen flex-col">
-      <a href="#main" className="sr-only rounded-md bg-white px-3 py-2 focus:not-sr-only focus:absolute focus:left-3 focus:top-3">
+      <a href="#main" className="sr-only rounded-md bg-white px-3 py-2 focus:not-sr-only focus:absolute focus:left-3 focus:top-3 focus:z-50">
         Skip to content
       </a>
+
       <header className="sticky top-0 z-30 border-b border-line bg-white">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3 sm:px-6">
           <Wordmark />
 
-          {/* Desktop navigation */}
           <nav aria-label="Main" className="hidden items-center gap-1 md:flex">
-            {items}
-            <span className="mx-2 h-5 w-px bg-line" aria-hidden="true" />
-            {account}
+            <NavLink to="/" end className={desktopLink}>Home</NavLink>
+            <NavLink to="/setup" className={desktopLink}>New career plan</NavLink>
+            {user && <NavLink to="/plans" className={desktopLink}>My plans</NavLink>}
+            {ready && (user ? (
+              <div className="ml-3 flex items-center gap-3 border-l border-line pl-4">
+                <span className="max-w-[10rem] truncate text-sm text-muted">Hi, {user.name}</span>
+                <button type="button" onClick={signOut} className={buttonClasses('secondary', '!py-1.5')}>
+                  <LogOut className="h-4 w-4" aria-hidden="true" /> Sign out
+                </button>
+              </div>
+            ) : (
+              <div className="ml-3 flex items-center gap-2 border-l border-line pl-4">
+                <NavLink to="/login" className={desktopLink}>Sign in</NavLink>
+                <Link to="/register" className={buttonClasses('primary', '!py-1.5')}>Create account</Link>
+              </div>
+            ))}
           </nav>
 
-          {/* Hamburger (small screens) */}
           <button
-            ref={toggleRef}
+            ref={menuButton}
             type="button"
-            className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-line text-ink hover:bg-paper md:hidden"
+            className="inline-flex h-11 w-11 items-center justify-center rounded-lg border border-line text-ink hover:bg-paper md:hidden"
             aria-expanded={open}
             aria-controls="mobile-menu"
             aria-label={open ? 'Close menu' : 'Open menu'}
@@ -106,11 +92,29 @@ export default function Layout() {
         </div>
 
         {open && (
-          <nav id="mobile-menu" aria-label="Mobile" className="border-t border-line bg-white px-4 pb-4 pt-2 md:hidden">
-            <div className="flex flex-col [&>a]:py-3">{items}</div>
-            <div className="mt-2 flex flex-col gap-2 border-t border-line pt-3 [&>a]:justify-center [&>a]:text-center [&>button]:py-3">
-              {account}
-            </div>
+          <nav id="mobile-menu" aria-label="Main" className="border-t border-line bg-white px-4 pb-4 pt-2 md:hidden">
+            <ul className="space-y-1">
+              <li><NavLink to="/" end className={mobileLink}>Home</NavLink></li>
+              <li><NavLink to="/setup" className={mobileLink}>New career plan</NavLink></li>
+              {user && <li><NavLink to="/plans" className={mobileLink}>My plans</NavLink></li>}
+            </ul>
+            {ready && (
+              <div className="mt-3 border-t border-line pt-3">
+                {user ? (
+                  <>
+                    <p className="px-3 pb-2 text-sm text-muted">Signed in as {user.name}</p>
+                    <button type="button" onClick={signOut} className={buttonClasses('secondary', 'w-full !py-3')}>
+                      <LogOut className="h-4 w-4" aria-hidden="true" /> Sign out
+                    </button>
+                  </>
+                ) : (
+                  <div className="grid gap-2">
+                    <Link to="/register" className={buttonClasses('primary', '!py-3')}>Create account</Link>
+                    <Link to="/login" className={buttonClasses('secondary', '!py-3')}>Sign in</Link>
+                  </div>
+                )}
+              </div>
+            )}
           </nav>
         )}
       </header>
@@ -118,6 +122,7 @@ export default function Layout() {
       <main id="main" className="mx-auto w-full max-w-6xl flex-1 px-4 py-8 sm:px-6 sm:py-12">
         <Outlet />
       </main>
+
       <footer className="border-t border-line bg-white">
         <p className="mx-auto max-w-6xl px-4 py-5 text-sm text-muted sm:px-6">
           Scores are AI-assisted estimates based on what you tell us and submit. They are not a hiring probability or a

@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
-import { useNavigate, useSearchParams } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { ArrowLeft, ArrowRight, FlaskConical, X } from 'lucide-react'
 import { api } from '../api.js'
+import { useAuth } from '../auth.jsx'
 import { Button, Card, ErrorBanner, Field, ProgressPanel, inputClasses } from '../components/ui.jsx'
 
 const LEVELS = ['Beginner', 'Intermediate', 'Recent graduate', 'Career changer']
@@ -14,7 +15,13 @@ const EMPTY = {
   existing_skills: [],
   weekly_learning_hours: 10,
   is_demo: false,
+  demo_key: '',
 }
+const DEMOS = [
+  { id: 'digital-marketing', title: 'Digital Marketing Assistant' },
+  { id: 'junior-accountant', title: 'Junior Accountant' },
+  { id: 'data-engineer', title: 'Junior Data Engineer' },
+]
 
 function TagInput({ id, value, onChange }) {
   const [text, setText] = useState('')
@@ -36,7 +43,7 @@ function TagInput({ id, value, onChange }) {
           className={inputClasses}
           value={text}
           maxLength={80}
-          placeholder="e.g. Basic Python"
+          placeholder="e.g. Customer service"
           onChange={(e) => setText(e.target.value)}
           onKeyDown={(e) => {
             if (e.key === 'Enter' || e.key === ',') {
@@ -71,36 +78,62 @@ function TagInput({ id, value, onChange }) {
 
 export default function Setup() {
   const navigate = useNavigate()
+  const { user } = useAuth()
   const [params] = useSearchParams()
+  const [prefilled, setPrefilled] = useState(false)
   const [step, setStep] = useState(0)
   const [form, setForm] = useState(EMPTY)
   const [errors, setErrors] = useState({})
   const [busy, setBusy] = useState(false)
   const [apiError, setApiError] = useState(null)
-  const [demoLoading, setDemoLoading] = useState(false)
+  const [demoLoading, setDemoLoading] = useState('')
   const [demoLabel, setDemoLabel] = useState('')
 
   const set = (patch) => setForm((f) => ({ ...f, ...patch }))
 
-  const loadDemo = async () => {
-    setDemoLoading(true)
+  const loadDemo = async (id) => {
+    setDemoLoading(id || 'first')
     setApiError(null)
     try {
       const d = await api.demo()
-      setForm({ ...EMPTY, ...d.profile, job_description: d.job_description, is_demo: true })
+      const sc = d.scenarios.find((s) => s.id === id) || d.scenarios.find((s) => s.id === DEMOS[0].id) || d.scenarios[0]
+      setForm({
+        ...EMPTY, ...sc.profile, name: user?.name || sc.profile.name,
+        job_description: sc.job_description, is_demo: true, demo_key: sc.id,
+      })
       setDemoLabel(d.label)
+      setPrefilled(false)
       setErrors({})
     } catch (e) {
       setApiError(e)
     } finally {
-      setDemoLoading(false)
+      setDemoLoading('')
     }
   }
 
   useEffect(() => {
-    if (params.get('demo') === '1') loadDemo()
+    const d = params.get('demo')
+    if (d) loadDemo(d === '1' ? undefined : d)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  // Signed-in users: start from their name and the details of their last plan.
+  useEffect(() => {
+    if (!user || params.get('demo')) return undefined
+    let alive = true
+    api.me().then((u) => {
+      if (!alive) return
+      const lp = u.last_profile
+      setForm((f) => (f.name || f.existing_skills.length || f.is_demo ? f : {
+        ...f,
+        name: u.name,
+        ...(lp ? { experience_level: lp.experience_level, existing_skills: lp.existing_skills, weekly_learning_hours: lp.weekly_learning_hours } : {}),
+      }))
+      if (lp) setPrefilled(true)
+    }).catch(() => {})
+    return () => { alive = false }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user])
 
   const validate = (s) => {
     const e = {}
@@ -129,6 +162,7 @@ export default function Setup() {
         weekly_learning_hours: Number(form.weekly_learning_hours),
         job_description: form.job_description.trim(),
         is_demo: form.is_demo,
+        demo_key: form.demo_key,
       })
       const analysis = await api.analyze(profile.id)
       navigate(`/plan/${analysis.id}`)
@@ -175,21 +209,30 @@ export default function Setup() {
         <Card className="space-y-5">
           {step === 0 && (
             <>
-              <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-paper p-3">
-                <p className="text-sm text-muted">Want to see how it works first?</p>
-                <Button type="button" variant="secondary" loading={demoLoading} onClick={loadDemo}>
-                  <FlaskConical className="h-4 w-4" aria-hidden="true" />
-                  Load demo scenario
-                </Button>
+              <div className="rounded-lg bg-paper p-3">
+                <p className="text-sm text-muted">Want to see how it works first? Load a demo scenario:</p>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {DEMOS.map((d) => (
+                    <Button key={d.id} type="button" variant="secondary" loading={demoLoading === d.id} onClick={() => loadDemo(d.id)}>
+                      <FlaskConical className="h-4 w-4" aria-hidden="true" />
+                      {d.title}
+                    </Button>
+                  ))}
+                </div>
               </div>
+              {!user && (
+                <p className="text-sm text-muted">
+                  <Link to="/login?next=/setup" className="font-semibold text-accent underline">Sign in</Link> to save your plans and skip retyping your details next time.
+                </p>
+              )}
               <Field id="target_role" label="Target job role" error={errors.target_role}>
                 <input
                   id="target_role"
                   className={inputClasses}
                   value={form.target_role}
                   maxLength={120}
-                  placeholder="e.g. Junior Data Engineer"
-                  onChange={(e) => set({ target_role: e.target.value })}
+                  placeholder="e.g. Digital Marketing Assistant, Junior Accountant, Nurse, Software Developer"
+                  onChange={(e) => set({ target_role: e.target.value, is_demo: false, demo_key: '' })}
                 />
               </Field>
               <Field
@@ -203,7 +246,7 @@ export default function Setup() {
                   className={`${inputClasses} min-h-[200px]`}
                   value={form.job_description}
                   maxLength={8000}
-                  onChange={(e) => set({ job_description: e.target.value, is_demo: false })}
+                  onChange={(e) => set({ job_description: e.target.value, is_demo: false, demo_key: '' })}
                 />
                 <div className="mt-1.5 flex justify-between text-sm text-muted">
                   <span>{form.is_demo && demoLabel ? demoLabel : ''}</span>
@@ -215,6 +258,7 @@ export default function Setup() {
 
           {step === 1 && (
             <>
+              {prefilled && <p className="rounded-lg bg-accentSoft p-3 text-sm text-[#085C3E]">Filled in from your last plan. Change anything that is different now.</p>}
               <Field id="name" label="Your name" error={errors.name}>
                 <input id="name" className={inputClasses} value={form.name} maxLength={120} autoComplete="given-name" onChange={(e) => set({ name: e.target.value })} />
               </Field>
@@ -225,7 +269,7 @@ export default function Setup() {
                   ))}
                 </select>
               </Field>
-              <Field id="skills" label="Skills you already have" hint="Type a skill and press Enter. Add qualifiers like 'basic' if they apply; the score treats them honestly.">
+              <Field id="skills" label="Skills you already have" hint="Type a skill and press Enter, for example Customer service, Basic Excel or Lesson planning. Add words like 'basic' if they apply; the score treats them honestly.">
                 <TagInput id="skills" value={form.existing_skills} onChange={(existing_skills) => set({ existing_skills })} />
               </Field>
               <Field id="weekly_learning_hours" label="Hours you can learn each week" error={errors.weekly_learning_hours}>

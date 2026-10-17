@@ -1,10 +1,46 @@
 import axios from 'axios'
 
 // Backend responses look like { ok: true, data } or { ok: false, error: { code, message, details } }.
+const TOKEN_KEY = 'skillbridge_token'
+export const AUTH_EXPIRED = 'skillbridge:auth-expired'
+export const getToken = () => {
+  try { return localStorage.getItem(TOKEN_KEY) } catch { return null }
+}
+export const setToken = (t) => {
+  try { localStorage.setItem(TOKEN_KEY, t) } catch { /* storage unavailable: stay signed in for this tab only */ }
+}
+export const clearToken = () => {
+  try { localStorage.removeItem(TOKEN_KEY) } catch { /* ignore */ }
+}
+
 const http = axios.create({
   baseURL: import.meta.env.VITE_API_URL || '/api',
   timeout: 300000, // project + rubric = 2 AI calls, each may retry once
 })
+
+http.interceptors.request.use((cfg) => {
+  const t = getToken()
+  if (t) cfg.headers.Authorization = `Token ${t}`
+  else if (cfg.headers?.delete) cfg.headers.delete('Authorization')
+  return cfg
+})
+
+// A stale token makes the API answer 401 even on public endpoints. Drop it and retry once as a guest.
+http.interceptors.response.use(
+  (r) => r,
+  (error) => {
+    const cfg = error.config
+    const isAuthCall = /\/auth\/(login|register)/.test(cfg?.url || '')
+    if (error.response?.status === 401 && cfg && !cfg._retried && getToken() && !isAuthCall) {
+      clearToken()
+      window.dispatchEvent(new Event(AUTH_EXPIRED))
+      cfg._retried = true
+      if (cfg.headers?.delete) cfg.headers.delete('Authorization')
+      return http.request(cfg)
+    }
+    return Promise.reject(error)
+  },
+)
 
 export class ApiError extends Error {
   constructor(message, code = 'error', details = null, status = 0) {
@@ -15,32 +51,11 @@ export class ApiError extends Error {
   }
 }
 
-const TOKEN_KEY = 'skillbridge_token'
-export const getAuthToken = () => { try { return localStorage.getItem(TOKEN_KEY) } catch { return null } }
-export function setAuthToken(token) {
-  try { token ? localStorage.setItem(TOKEN_KEY, token) : localStorage.removeItem(TOKEN_KEY) } catch { /* storage unavailable */ }
-}
-// Send the token on every request when signed in; anonymous use (and the demo) keeps working.
-http.interceptors.request.use((config) => {
-  const t = getAuthToken()
-  // Never send a possibly stale token to login/register: DRF would reject it before the view runs.
-  const isAuthEntry = /\/auth\/(login|register)\/?$/.test(config.url || '')
-  if (t && !isAuthEntry) config.headers.Authorization = `Token ${t}`
-  return config
-})
-
-export const SIGNED_OUT_EVENT = 'skillbridge:signed-out'
-
 async function call(request) {
   try {
     const res = await request
     return res.data.data
   } catch (e) {
-    // A 401 on an authenticated request means the token is dead (signed out elsewhere, expired): drop it.
-    if (e.response?.status === 401 && getAuthToken() && !/\/auth\/login\//.test(e.config?.url || '')) {
-      setAuthToken(null)
-      window.dispatchEvent(new Event(SIGNED_OUT_EVENT))
-    }
     const body = e.response?.data?.error
     if (body) throw new ApiError(body.message, body.code, body.details, e.response.status)
     if (e.response) throw new ApiError('The server returned an unexpected error. Check the Django terminal for details.', 'server_error', null, e.response.status)
@@ -50,11 +65,12 @@ async function call(request) {
 }
 
 export const api = {
+  demo: () => call(http.get('/demo/')),
   register: (body) => call(http.post('/auth/register/', body)),
   login: (body) => call(http.post('/auth/login/', body)),
   logout: () => call(http.post('/auth/logout/')),
   me: () => call(http.get('/auth/me/')),
-  demo: () => call(http.get('/demo/')),
+  myPlans: () => call(http.get('/my/plans/')),
   health: () => call(http.get('/health/')),
   createProfile: (body) => call(http.post('/profiles/', body)),
   analyze: (profile_id) => call(http.post('/analyze/', { profile_id })),

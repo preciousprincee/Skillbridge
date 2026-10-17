@@ -1,6 +1,7 @@
 import { useParams } from 'react-router-dom'
 import { Info } from 'lucide-react'
 import { api } from '../api.js'
+import JourneyNav from '../components/JourneyNav.jsx'
 import { useLoad } from '../useLoad.js'
 import {
   Badge, Card, ErrorBanner, EVIDENCE_STATUS, LinkButton, Meter, PageLoading,
@@ -31,6 +32,7 @@ export default function Results() {
 
   return (
     <div className="space-y-8">
+      <JourneyNav current="results" analysisId={project.analysis_id} projectId={project.id} submissionId={data.id} />
       <header>
         <p className="text-sm text-muted">Assessment for {project.title}</p>
         <div className="mt-2 flex flex-wrap items-end gap-x-6 gap-y-2">
@@ -45,7 +47,7 @@ export default function Results() {
         </p>
         {data.repository_url && (
           <p className="mt-2 max-w-2xl break-all text-sm text-muted">
-            Repository link saved: {data.repository_url}. It was not opened, so nothing here is based on its contents.
+            Link saved: {data.repository_url}. It was not opened, so nothing here is based on its contents.
           </p>
         )}
       </header>
