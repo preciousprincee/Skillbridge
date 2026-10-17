@@ -24,7 +24,7 @@ Get a free key in Google AI Studio (aistudio.google.com -> API keys) and put it 
 | GEMINI_API_KEY | Google AI Studio key (server-side only) |
 | GEMMA_MODEL | default `gemma-4-26b-a4b-it`; `gemma-4-31b-it` also listed for the Gemini API |
 | GROQ_API_KEY | Groq key from console.groq.com (server-side only) |
-| GROQ_MODEL | default `llama-3.3-70b-versatile`; check console.groq.com for the models your account can use |
+| GROQ_MODEL | default `openai/gpt-oss-120b`; check console.groq.com for the models your account can use |
 | AI_TIMEOUT_SECONDS | per-call timeout, default 60 |
 | FRONTEND_ORIGIN | CORS origin, default http://localhost:5173 |
 | DJANGO_SECRET_KEY / DJANGO_DEBUG / DJANGO_ALLOWED_HOSTS | standard Django settings |
